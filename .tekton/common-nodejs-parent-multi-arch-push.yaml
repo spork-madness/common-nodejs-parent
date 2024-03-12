@@ -303,12 +303,25 @@ spec:
       params:
       - name: input
         value: $(params.prefetch-input)
+      - name: IMAGE
+        value: $(params.output-image)
+      - name: generate-build-image
+        value: "true"
+      results:
+      - name: build-image
+        description: The image where the build sources have been pushed to
+      # - name: build-source-digest
+      #   description: The digest of the build source image
       runAfter:
       - clone-repository
       taskSpec:
         params:
           - description: Configures project packages that will have their dependencies prefetched.
             name: input
+          - description: The image configured to push the produced containers
+            name: IMAGE
+          - description: Whether to generate the build source image
+            name: generate-build-image
         steps:
         - image: quay.io/redhat-appstudio/cachi2:0.6.0@sha256:15d0513ed891b1d34fc46e56fdc9f6b457c90fbfd34f6a8c8fce6d3400ddc4a7
           name: prefetch-dependencies
@@ -334,6 +347,25 @@ spec:
 
             cachi2 inject-files $(workspaces.source.path)/cachi2/output \
             --for-output-dir=/cachi2/output
+        - image: quay.io/redhat-appstudio/buildah:v1.31.0@sha256:34f12c7b72ec2c28f1ded0c494b428df4791c909f1f174dd21b8ed6a57cf5ddb
+          name: push-build-source
+          env:
+          - name: OUTPUT_IMAGE
+            value: $(params.IMAGE)-build-source
+          - name: GENERATE_SOURCE
+            value: $(params.generate-build-image)
+          script: |
+            if [ -z "${GENERATE_SOURCE}" ]
+            then
+              echo "Build source image generation not requested. Continuing with the Pipeline Run"
+              exit 0
+            fi
+
+            buildah source create /tmp/build-image:latest
+            buildah source add /tmp/build-image:latest $(workspaces.source.path)
+            buildah source push /tmp/build-image:latest ${OUTPUT_IMAGE}
+
+            echo -n "${OUTPUT_IMAGE}" | tee $(results.build-image.path)
       # when:
       # - input: $(params.hermetic)
       #   operator: in
