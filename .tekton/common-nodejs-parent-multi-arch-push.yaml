@@ -299,21 +299,46 @@ spec:
       - name: COMMIT_SHA
         value: $(tasks.clone-repository.results.commit)
       runAfter:
-      - prefetch-dependencies
-      taskRef:
+    - name: prefetch-dependencies
+      params:
+      - name: input
+        value: $(params.prefetch-input)
+      runAfter:
+      - clone-repository
+      taskSpec:
         params:
-        - name: name
-          value: buildah
-        - name: bundle
-          value: quay.io/redhat-appstudio-tekton-catalog/task-buildah:0.1@sha256:00402c68491f7cdd8e541fbbef0958eb78bc21a54ad1574d9ffd313a0b296867
-        - name: kind
-          value: task
-        resolver: bundles
-      when:
-      - input: $(tasks.init.results.build)
-        operator: in
-        values:
-        - "true"
+          - description: Configures project packages that will have their dependencies prefetched.
+            name: input
+        steps:
+        - image: quay.io/redhat-appstudio/cachi2:0.6.0@sha256:15d0513ed891b1d34fc46e56fdc9f6b457c90fbfd34f6a8c8fce6d3400ddc4a7
+          name: prefetch-dependencies
+          env:
+          - name: INPUT
+            value: $(params.input)
+          script: |
+            if [ -z "${INPUT}" ]
+            then
+              echo "Build will be executed with network isolation, but no content was configured to be prefetched."
+              exit 0
+            fi
+
+            cachi2 fetch-deps \
+            --source=$(workspaces.source.path)/source \
+            --output=$(workspaces.source.path)/cachi2/output \
+            "${INPUT}"
+
+            cachi2 generate-env $(workspaces.source.path)/cachi2/output \
+            --format env \
+            --for-output-dir=/cachi2/output \
+            --output $(workspaces.source.path)/cachi2/cachi2.env
+
+            cachi2 inject-files $(workspaces.source.path)/cachi2/output \
+            --for-output-dir=/cachi2/output
+      # when:
+      # - input: $(params.hermetic)
+      #   operator: in
+      #   values:
+      #   - "true"
       workspaces:
       - name: source
         workspace: workspace
