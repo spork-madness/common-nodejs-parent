@@ -1,5 +1,5 @@
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
-
+RUN sleep 5m
 ENV NODEJS_VERSION=18
 COPY install-npm.sh install-npm.sh
 
