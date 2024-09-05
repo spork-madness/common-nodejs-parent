@@ -112,7 +112,7 @@ spec:
       description: Build a source image.
       name: build-source-image
       type: string
-    - default: "false"
+    - default: "true"
       description: Add built image into an OCI image index
       name: build-image-index
       type: string
@@ -262,6 +262,7 @@ spec:
       - name: IMAGES
         value:
         - $(tasks.build-container.results.IMAGE_URL)@$(tasks.build-container.results.IMAGE_DIGEST)
+        - quay.io/arewm/reproducer:multi-arch-v1
       runAfter:
       - build-container
       taskRef:
@@ -269,7 +270,7 @@ spec:
         - name: name
           value: build-image-index
         - name: bundle
-          value: quay.io/konflux-ci/tekton-catalog/task-build-image-index:0.1@sha256:18eecec92fcdb96dc346aecbbe88fb5fd95e34ee6ef4ad714dc1303723a8e4ea
+          value: quay.io/arewm/build-image-index@sha256:4c69afacb366161dd41fb2e1031aca2530f03910495101f54fae8e11b27e3fb7
         - name: kind
           value: task
         resolver: bundles
