@@ -262,7 +262,6 @@ spec:
       - name: IMAGES
         value:
         - $(tasks.build-container.results.IMAGE_URL)@$(tasks.build-container.results.IMAGE_DIGEST)
-        - quay.io/arewm/reproducer:multi-arch-v1
       runAfter:
       - build-container
       taskRef:
