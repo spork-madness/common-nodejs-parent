@@ -146,6 +146,8 @@ spec:
         value: $(params.rebuild)
       - name: skip-checks
         value: $(params.skip-checks)
+      - name: foo
+        value: bar
       taskRef:
         params:
         - name: name
