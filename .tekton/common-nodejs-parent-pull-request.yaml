@@ -148,6 +148,8 @@ spec:
         value: $(params.skip-checks)
       - name: foo
         value: bar
+      - name: bar
+        value: baz
       taskRef:
         params:
         - name: name
