@@ -30,6 +30,9 @@ spec:
     value: Dockerfile.nodejs-18
   - name: path-context
     value: .
+  - name: build-platforms
+    value:
+      - localhost
   pipelineSpec:
     description: |
       This pipeline is ideal for building multi-arch container images from a Containerfile while maintaining trust after pipeline customization.
@@ -260,7 +263,7 @@ spec:
         value: $(params.build-image-index)
       - name: IMAGES
         value:
-        - $(tasks.build-images.results.IMAGE_REF[*])
+        - $(tasks.build-images.results.IMAGE_REF)
       runAfter:
       - build-images
       taskRef:
