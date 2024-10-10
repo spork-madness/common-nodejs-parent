@@ -175,7 +175,7 @@ spec:
         - name: name
           value: git-clone
         - name: bundle
-          value: quay.io/konflux-ci/tekton-catalog/task-git-clone:0.1@sha256:2cccdf8729ad4d5adf65e8b66464f8efa1e1c87ba16d343b4a6c621a2a40f7e1
+          value: quay.io/arewm/git-clone@sha256:37e5444aa1c6cd9bc1a6b9f5234d296152ede9653d39504322f9f17857f01cf0
         - name: kind
           value: task
         resolver: bundles
@@ -189,6 +189,110 @@ spec:
         workspace: workspace
       - name: basic-auth
         workspace: git-auth
+    - name: clone-repository-ta
+      params:
+      - name: url
+        value: $(params.git-url)
+      - name: revision
+        value: $(params.revision)
+      - name: ociStorage
+        value: $(params.output-image).git
+      - name: ociArtifactExpiresAfter
+        value: $(params.image-expires-after)
+      runAfter:
+      - init
+      taskRef:
+        params:
+        - name: name
+          value: git-clone-oci-ta
+        - name: bundle
+          value: quay.io/arewm/git-clone-oci-ta@sha256:b838e023ed949cb2ba32cca84bcd03b847f13d87462a08e13cd01b74586a2b1b
+        - name: kind
+          value: task
+        resolver: bundles
+      when:
+      - input: $(tasks.init.results.build)
+        operator: in
+        values:
+        - "true"
+      workspaces:
+      - name: basic-auth
+        workspace: git-auth
+    - name: debug-ta-adjusted
+      runAfter:
+        - clone-repository-ta
+      taskSpec:
+        volumes:
+          - emptyDir: {}
+            name: workdir
+        stepTemplate:
+          volumeMounts:
+            - mountPath: /var/workdir
+              name: workdir
+        steps:
+          - name: use-trusted-artifact
+            image: quay.io/arewm/build-trusted-artifacts:latest@sha256:6843199ddbd3f83d71782f1488cf5f8226a5b2aeb7716bb833dfefd9773c23a5
+            env:
+              - name: DEBUG
+                value: "true"
+            args:
+              - use
+              - --adjust-group
+              - $(tasks.clone-repository-ta.results.SOURCE_ARTIFACT)=/var/workdir/source
+          - name: debug
+            image: registry.access.redhat.com/ubi9/ubi-minimal:9.4-1194@sha256:73f7dcacb460dad137a58f24668470a5a2e47378838a0190eef0ab532c6e8998
+            script: |
+              id
+              ls -al /var/workdir/source
+              touch /var/workdir/source/Dockerfile
+              sleep 60
+              exit 5
+    - name: debug-ta-unadjusted
+      runAfter:
+        - clone-repository-ta
+      taskSpec:
+        volumes:
+          - emptyDir: {}
+            name: workdir
+        stepTemplate:
+          volumeMounts:
+            - mountPath: /var/workdir
+              name: workdir
+        steps:
+          - name: use-trusted-artifact
+            image: quay.io/redhat-appstudio/build-trusted-artifacts:latest@sha256:e0e457b6af10e44ff6b90208a9e69adc863a865e1c062c4cb84bf3846037d74d
+            env:
+              - name: DEBUG
+                value: "true"
+            args:
+              - use
+              - $(tasks.clone-repository-ta.results.SOURCE_ARTIFACT)=/var/workdir/source
+          - name: debug
+            image: registry.access.redhat.com/ubi9/ubi-minimal:9.4-1194@sha256:73f7dcacb460dad137a58f24668470a5a2e47378838a0190eef0ab532c6e8998
+            script: |
+              id
+              ls -al /var/workdir/source
+              touch /var/workdir/source/Dockerfile
+              sleep 60
+              exit 5
+    - name: debug
+      runAfter:
+      - clone-repository
+      taskSpec:
+        steps:
+        - name: debug
+          image: registry.access.redhat.com/ubi9/ubi-minimal:9.4-1194@sha256:73f7dcacb460dad137a58f24668470a5a2e47378838a0190eef0ab532c6e8998
+          script: |
+            id
+            ls -al $(workspaces.source.path)/source
+            touch $(workspaces.source.path)/Dockerfile
+            sleep 60
+            exit 5
+        workspaces:
+          - name: source
+      workspaces:
+      - name: source
+        workspace: workspace
     - name: prefetch-dependencies
       params:
       - name: input
@@ -239,6 +343,9 @@ spec:
         value: $(params.build-args-file)
       runAfter:
       - prefetch-dependencies
+      - debug-ta-adjusted
+      - debug-ta-unadjusted
+      - debug
       taskRef:
         params:
         - name: name
