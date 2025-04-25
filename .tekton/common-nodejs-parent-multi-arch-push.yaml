@@ -388,7 +388,8 @@ spec:
     - name: workspace
     - name: git-auth
       optional: true
-  taskRunTemplate: {}
+  taskRunTemplate:
+    serviceAccountName: build-pipeline-common-nodejs-parent-multi-arch
   workspaces:
   - name: workspace
     volumeClaimTemplate:
